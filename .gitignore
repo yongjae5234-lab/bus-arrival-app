@@ -1,0 +1,19 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+.DS_Store
+
+# 테스트/임시 파일
+test_*.py
+find_*.py
+brute_*.py
+get_naver_id.py
+results.txt
+test_kakao.json
+test_naver.html

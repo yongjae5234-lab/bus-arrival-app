@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0f172a">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <title>우리 동네 버스 🚌</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="app">
+
+    <!-- 메인 화면 -->
+    <div id="main-screen" class="screen active">
+        <header>
+            <div class="header-top">
+                <span class="bus-emoji">🚌</span>
+                <h1>우리 동네 버스</h1>
+            </div>
+            <p class="subtitle">정류장을 누르면 버스 정보가 나와요</p>
+        </header>
+
+        <section id="slots-section">
+            <!-- JS가 동적으로 생성 -->
+        </section>
+    </div>
+
+    <!-- 버스 도착 정보 화면 -->
+    <div id="arrival-screen" class="screen">
+        <div class="arrival-header">
+            <button class="back-btn" id="back-btn">← 뒤로</button>
+            <div class="arrival-title-wrap">
+                <h2 id="arrival-stop-name">정류장 이름</h2>
+                <span id="arrival-stop-id" class="arrival-stop-id"></span>
+            </div>
+            <button class="refresh-btn" id="refresh-btn">🔄</button>
+        </div>
+
+        <div class="refresh-info">
+            <span id="refresh-timer">자동 새로고침: 30초</span>
+        </div>
+
+        <div id="bus-list-container">
+            <div class="loading" id="loading-indicator">
+                <div class="spinner"></div>
+                <p>버스 정보를 불러오는 중...</p>
+            </div>
+            <div id="bus-list"></div>
+            <div id="no-bus" class="no-bus hidden">
+                <p>🚏</p>
+                <p>현재 도착 예정인 버스가 없습니다</p>
+                <p class="no-bus-sub">(막차 통과 또는 운행 종료)</p>
+            </div>
+            <div id="error-info" class="error-info hidden">
+                <p>⚠️ 정보를 가져오지 못했습니다</p>
+                <p id="error-detail" class="error-detail"></p>
+                <button class="retry-btn" onclick="retryArrival()">다시 시도</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 정류장 설정 모달 -->
+    <div id="setup-modal" class="modal hidden">
+        <div class="modal-backdrop" onclick="closeSetupModal()"></div>
+        <div class="modal-box">
+            <h3>📍 정류장 설정</h3>
+            <p class="modal-desc">버스 정류장 표지판에 적힌 <strong>5자리 숫자</strong>를 입력하세요</p>
+            <div class="modal-input-row">
+                <input 
+                    type="number" 
+                    id="stop-id-input" 
+                    placeholder="예: 42378"
+                    maxlength="5"
+                    inputmode="numeric"
+                    onkeypress="handleModalEnter(event)"
+                >
+                <button class="modal-search-btn" onclick="searchAndSaveStop()">확인</button>
+            </div>
+            <div id="modal-searching" class="modal-searching hidden">
+                <div class="spinner small"></div>
+                <span>검색 중...</span>
+            </div>
+            <div id="modal-result" class="modal-result hidden"></div>
+            <button class="modal-cancel-btn" onclick="closeSetupModal()">취소</button>
+        </div>
+    </div>
+
+</div>
+
+<script src="script.js"></script>
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js').catch(() => {});
+        });
+    }
+</script>
+</body>
+</html>
