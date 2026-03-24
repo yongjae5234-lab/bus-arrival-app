@@ -36,9 +36,16 @@ async def serve_index():
         return FileResponse("index.html")
     return HTMLResponse("<h1>Bus App Server</h1><p>index.html 파일을 찾을 수 없습니다.</p>")
 
+@app.get("/index.html")
+async def serve_index_html():
+    """PWA의 start_url이 ./index.html 이므로 명시적으로 처리"""
+    if os.path.exists("index.html"):
+        return FileResponse("index.html")
+    raise HTTPException(status_code=404, detail="index.html not found")
+
 @app.get("/{filename}")
 async def serve_static(filename: str):
-    allowed_extensions = [".css", ".js", ".json", ".png", ".jpg", ".ico", ".svg"]
+    allowed_extensions = [".css", ".js", ".json", ".png", ".jpg", ".ico", ".svg", ".html"]
     # API 요청과 겹치지 않도록 방어 로직 추가
     if filename.startswith("api"):
         raise HTTPException(status_code=404)

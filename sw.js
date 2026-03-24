@@ -18,7 +18,7 @@ self.addEventListener('install', event => {
 
 self.addEventListener('fetch', event => {
   // API 요청은 항상 네트워크를 사용하도록 우회 (캐시 안 함)
-  if (event.request.url.includes('/api/bus-info')) {
+  if (event.request.url.includes('/api/')) {
     event.respondWith(fetch(event.request));
     return;
   }

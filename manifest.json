@@ -2,16 +2,12 @@
   "name": "우리 동네 버스 알림",
   "short_name": "버스알림",
   "description": "클릭 한 번으로 쉽게 확인하는 버스 도착 정보",
-  "start_url": "./index.html",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "theme_color": "#e94560",
   "background_color": "#1a1a2e",
   "icons": [
-    {
-      "src": "favicon.ico",
-      "sizes": "64x64",
-      "type": "image/x-icon"
-    },
     {
       "src": "icon-192.png",
       "sizes": "192x192",
