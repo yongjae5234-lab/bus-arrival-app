@@ -51,7 +51,7 @@ SEOUL_HEADERS = {
 # ============================================================
 # 경기도 버스 API (공공데이터포털 REST API, API 키 필요)
 # ============================================================
-GG_API_KEY = os.getenv("BUS_API_KEY", "")
+GG_API_KEY = os.getenv("GYEONGGI_API_KEY", "")
 GG_SEARCH_URL = "https://apis.data.go.kr/6410000/busstationservice/v2/getBusStationListv2"
 GG_ARRIVAL_URL = "https://apis.data.go.kr/6410000/busarrivalservice/v2/getBusArrivalListv2"
 
