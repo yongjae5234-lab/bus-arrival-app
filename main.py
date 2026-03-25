@@ -129,36 +129,35 @@ def _parse_seoul_arrival(data: dict) -> list:
         return []
     buses = []
     for bus in result_list:
-        route_no = bus.get("rtnm", bus.get("strnm", ""))
-        # 도착 시간: actnm(초 단위) 또는 예정시간 필드
-        arr_sec1 = bus.get("arrmsg1", "")  # "3분 후" 형태 문자열
-        arr_sec2 = bus.get("arrmsg2", "")
-        # acrsec 필드: 도착 예정 초
-        sec1 = bus.get("acrsec", 0) or bus.get("acrsecNd", 0)
-        
-        # arrmsg1 가 있으면 활용, 없으면 acrsec 변환
-        if arr_sec1 and arr_sec1 not in ["운행종료", "출발대기", "곧 도착"]:
-            time_str = arr_sec1
-            # 분 파싱 시도
-            import re
-            m = re.search(r'(\d+)\s*분', arr_sec1)
-            minutes = int(m.group(1)) if m else 99
-        elif arr_sec1 == "곧 도착":
-            time_str = "잠시 후 도착"
-            minutes = 0
-        elif sec1:
-            minutes = int(sec1) // 60
-            time_str = "잠시 후 도착" if minutes == 0 else f"{minutes}분 후"
-        else:
-            continue
+        route_no = bus.get("rtnm", bus.get("rtnum", ""))
+        # stat1: 양수 = 도착 예정 분, 음수 = 운행종료 등
+        stat1 = bus.get("stat1", -1)
+        statnm1 = bus.get("statnm1", "")
+        avgs11 = bus.get("avgs11", 0)  # 평균 배차 간격(초) - 없을 때 사용
 
-        stop_info = bus.get("stbstopnm", bus.get("stNm", "위치 정보 없음"))
-        if not stop_info or stop_info == "null":
-            stop_info = "위치 정보 없음"
-        
+        if stat1 is not None and stat1 > 0:
+            # stat1이 분 단위 예정 시간
+            minutes = int(stat1)
+        elif statnm1 in ["곧 도착", "도착", "전전전", "전전", "전"]:
+            minutes = 0
+        else:
+            continue  # 운행종료, 출발대기 등 제외
+
+        time_str = "잠시 후 도착" if minutes == 0 else f"{minutes}분 후"
+        # 경유 위치: statnm1이 숫자 "전" 형태일 때
+        import re
+        m = re.match(r'^(\d+)\s*전$', str(statnm1))
+        stop_info = f"{m.group(1)}정거장 전" if m else (statnm1 if statnm1 else "위치 정보 없음")
+
         if route_no:
-            buses.append({"routeNo": route_no, "timeStr": time_str, "stopInfo": stop_info, "isArriving": minutes <= 3, "minutes": minutes})
-    
+            buses.append({
+                "routeNo": route_no,
+                "timeStr": time_str,
+                "stopInfo": stop_info,
+                "isArriving": minutes <= 3,
+                "minutes": minutes
+            })
+
     buses.sort(key=lambda x: x["minutes"])
     return buses[:10]
 
