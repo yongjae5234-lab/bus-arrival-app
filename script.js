@@ -16,14 +16,18 @@ const SLOT_0_FIXED = {
     id: "168000378",      // 인천 버스 내부 ID
     name: "독정역",
     shortId: "42378",
+    region: "incheon",    // 지역 고정
 };
 
 /** 기본 슬롯 초기값 */
 const DEFAULT_SLOTS = [
     SLOT_0_FIXED,
-    { id: "", name: "정류장 2", shortId: "" },
-    { id: "", name: "정류장 3", shortId: "" },
+    { id: "", name: "정류장 2", shortId: "", region: "incheon" },
+    { id: "", name: "정류장 3", shortId: "", region: "incheon" },
 ];
+
+/** 현재 모달에서 선택된 지역 */
+let currentRegion = "incheon";
 
 /** 자동 새로고침 간격 (ms) */
 const REFRESH_INTERVAL_MS = 30_000;
@@ -46,13 +50,14 @@ let isLoadingArrival = false; // 도착 정보 로딩 중 여부
 
 function loadSlots() {
     try {
-        const raw = localStorage.getItem("busSlots_v2");
+        // v3 우선, 없으면 v2 마이그레이션
+        const raw = localStorage.getItem("busSlots_v3") || localStorage.getItem("busSlots_v2");
         if (raw) {
             const parsed = JSON.parse(raw);
             // 슬롯 0는 항상 고정값 사용
             slots[0] = { ...SLOT_0_FIXED };
-            if (parsed[1] && parsed[1].id) slots[1] = parsed[1];
-            if (parsed[2] && parsed[2].id) slots[2] = parsed[2];
+            if (parsed[1] && parsed[1].id) slots[1] = { region: "incheon", ...parsed[1] };
+            if (parsed[2] && parsed[2].id) slots[2] = { region: "incheon", ...parsed[2] };
         }
     } catch (e) {
         console.warn("슬롯 로드 실패:", e);
@@ -60,7 +65,7 @@ function loadSlots() {
 }
 
 function saveSlots() {
-    localStorage.setItem("busSlots_v2", JSON.stringify(slots));
+    localStorage.setItem("busSlots_v3", JSON.stringify(slots));
 }
 
 // ==========================================
@@ -82,13 +87,14 @@ function showArrivalScreen(slotIndex) {
     const slot = slots[slotIndex];
     currentSlotIndex = slotIndex;
 
+    const regionLabel = { incheon: "인천", gyeonggi: "경기", seoul: "서울" }[slot.region] || "";
     document.getElementById("arrival-stop-name").textContent = slot.name;
     document.getElementById("arrival-stop-id").textContent =
-        slot.shortId ? `정류장 번호: ${slot.shortId}` : `ID: ${slot.id}`;
+        slot.shortId ? `${regionLabel} · 정류장 번호: ${slot.shortId}` : `${regionLabel} · ID: ${slot.id}`;
 
     showScreen("arrival-screen");
-    loadArrivalData(slot.id);
-    startRefreshTimers(slot.id);
+    loadArrivalData(slot.id, slot.region);
+    startRefreshTimers(slot.id, slot.region);
 }
 
 // ==========================================
@@ -160,7 +166,7 @@ function renderSlots() {
 //  도착 정보 로드
 // ==========================================
 
-async function loadArrivalData(bstopid) {
+async function loadArrivalData(bstopid, region) {
     if (isLoadingArrival) return;
     isLoadingArrival = true;
 
@@ -175,9 +181,9 @@ async function loadArrivalData(bstopid) {
     loading.classList.remove("hidden");
 
     try {
-        const resp = await fetch(`/api/bus-arrival?bstopid=${encodeURIComponent(bstopid)}`);
+        const r = region || "incheon";
+        const resp = await fetch(`/api/bus-arrival?bstopid=${encodeURIComponent(bstopid)}&region=${r}`);
         if (!resp.ok) {
-            const err = await resp.text();
             throw new Error(`서버 오류 (${resp.status})`);
         }
         const buses = await resp.json();
@@ -257,13 +263,13 @@ function retryArrival() {
 //  자동 새로고침 타이머
 // ==========================================
 
-function startRefreshTimers(bstopid) {
+function startRefreshTimers(bstopid, region) {
     stopRefreshTimers();
     countdownSec = REFRESH_INTERVAL_MS / 1000;
     updateCountdownDisplay();
 
     refreshTimer = setInterval(() => {
-        loadArrivalData(bstopid);
+        loadArrivalData(bstopid, region);
         countdownSec = REFRESH_INTERVAL_MS / 1000;
     }, REFRESH_INTERVAL_MS);
 
@@ -291,15 +297,36 @@ function openSetupModal(slotIndex) {
     if (slotIndex === 0) return; // 슬롯 0은 고정
 
     currentEditingSlot = slotIndex;
+    currentRegion = slots[slotIndex].region || "incheon";
     document.getElementById("stop-id-input").value = "";
     document.getElementById("modal-result").innerHTML = "";
     document.getElementById("modal-result").classList.add("hidden");
     document.getElementById("modal-searching").classList.add("hidden");
     document.getElementById("setup-modal").classList.remove("hidden");
+    
+    // 지역 탭 초기화
+    selectRegionTab(currentRegion);
 
     setTimeout(() => {
         document.getElementById("stop-id-input").focus();
     }, 300);
+}
+
+function selectRegionTab(region) {
+    currentRegion = region;
+    document.querySelectorAll(".region-tab").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.region === region);
+    });
+    // 지역별 안내 문구 변경
+    const hints = {
+        incheon: "정류장 표지판의 5자리 숫자",
+        gyeonggi: "정류장 이름 또는 번호",
+        seoul: "정류장 이름 또는 번호",
+    };
+    document.getElementById("stop-hint").textContent = hints[region] || "정류장 이름 또는 번호";
+    // 결과 초기화
+    document.getElementById("modal-result").innerHTML = "";
+    document.getElementById("modal-result").classList.add("hidden");
 }
 
 function closeSetupModal() {
@@ -314,7 +341,7 @@ function handleModalEnter(e) {
 async function searchAndSaveStop() {
     const input = document.getElementById("stop-id-input").value.trim();
     if (!input) {
-        alert("정류장 번호를 입력해주세요.");
+        alert("정류장 이름 또는 번호를 입력해주세요.");
         return;
     }
 
@@ -326,7 +353,7 @@ async function searchAndSaveStop() {
     resultContainer.innerHTML = "";
 
     try {
-        const resp = await fetch(`/api/search-stop?q=${encodeURIComponent(input)}`);
+        const resp = await fetch(`/api/search-stop?q=${encodeURIComponent(input)}&region=${currentRegion}`);
         if (!resp.ok) throw new Error("검색 실패");
         const results = await resp.json();
 
@@ -335,7 +362,7 @@ async function searchAndSaveStop() {
         if (!results || results.length === 0) {
             resultContainer.innerHTML = `
                 <div class="modal-result-item" style="cursor:default; color: var(--text-sub);">
-                    검색 결과가 없습니다.<br>5자리 정류장 번호를 정확히 입력해주세요.
+                    검색 결과가 없습니다.<br>정류장 이름이나 번호를 다시 확인해주세요.
                 </div>
             `;
             resultContainer.classList.remove("hidden");
@@ -345,10 +372,10 @@ async function searchAndSaveStop() {
         // 결과 목록 표시
         resultContainer.innerHTML = results.map(stop => `
             <div class="modal-result-item" 
-                 onclick="selectStop('${escapeAttr(stop.id)}', '${escapeAttr(stop.name)}', '${escapeAttr(stop.shortId)}')">
+                 onclick="selectStop('${escapeAttr(stop.id)}', '${escapeAttr(stop.name)}', '${escapeAttr(stop.shortId)}', '${escapeAttr(stop.region || currentRegion)}')">
                 <div class="modal-result-name">${escapeHtml(stop.name)}</div>
                 <div class="modal-result-id">
-                    정류장 번호: ${escapeHtml(stop.shortId || stop.id)}
+                    번호: ${escapeHtml(stop.shortId || stop.id)}
                 </div>
             </div>
         `).join("");
@@ -365,9 +392,9 @@ async function searchAndSaveStop() {
     }
 }
 
-function selectStop(id, name, shortId) {
+function selectStop(id, name, shortId, region) {
     if (currentEditingSlot < 1) return;
-    slots[currentEditingSlot] = { id, name, shortId };
+    slots[currentEditingSlot] = { id, name, shortId, region: region || currentRegion };
     saveSlots();
     renderSlots();
     closeSetupModal();
@@ -412,9 +439,17 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("refresh-btn").addEventListener("click", () => {
         if (currentSlotIndex >= 0) {
             const slot = slots[currentSlotIndex];
-            loadArrivalData(slot.id);
+            loadArrivalData(slot.id, slot.region);
             // 카운트다운 리셋
             countdownSec = REFRESH_INTERVAL_MS / 1000;
         }
     });
+
+    // retryArrival도 region 포함
+    window.retryArrival = function() {
+        if (currentSlotIndex >= 0) {
+            const slot = slots[currentSlotIndex];
+            loadArrivalData(slot.id, slot.region);
+        }
+    };
 });

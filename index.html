@@ -68,14 +68,21 @@
         <div class="modal-backdrop" onclick="closeSetupModal()"></div>
         <div class="modal-box">
             <h3>📍 정류장 설정</h3>
-            <p class="modal-desc">버스 정류장 표지판에 적힌 <strong>5자리 숫자</strong>를 입력하세요</p>
+            
+            <!-- 지역 선택 탭 -->
+            <div class="region-tabs">
+                <button class="region-tab active" data-region="incheon" onclick="selectRegionTab('incheon')">🔵 인천</button>
+                <button class="region-tab" data-region="gyeonggi" onclick="selectRegionTab('gyeonggi')">🟢 경기</button>
+                <button class="region-tab" data-region="seoul" onclick="selectRegionTab('seoul')">🔴 서울</button>
+            </div>
+
+            <p class="modal-desc"><span id="stop-hint">정류장 표지판의 5자리 숫자</span>를 입력하세요</p>
             <div class="modal-input-row">
                 <input 
-                    type="number" 
+                    type="text" 
                     id="stop-id-input" 
-                    placeholder="예: 42378"
-                    maxlength="5"
-                    inputmode="numeric"
+                    placeholder="이름 또는 번호"
+                    inputmode="search"
                     onkeypress="handleModalEnter(event)"
                 >
                 <button class="modal-search-btn" onclick="searchAndSaveStop()">확인</button>

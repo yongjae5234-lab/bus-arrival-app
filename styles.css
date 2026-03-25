@@ -689,3 +689,41 @@ h1 {
 .modal-cancel-btn:hover {
     background: var(--surface2);
 }
+
+/* ==========================
+   지역 선택 탭
+========================== */
+.region-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.region-tab {
+    flex: 1;
+    padding: 12px 8px;
+    background: var(--surface2);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    color: var(--text-sub);
+    font-size: 1.1rem;
+    font-weight: 700;
+    font-family: 'Noto Sans KR', sans-serif;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.region-tab.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+}
+
+.region-tab:active {
+    transform: scale(0.95);
+}
+
+/* 입력창 letter-spacing 지역 탭 선택 시 제거 */
+.modal-input-row input {
+    letter-spacing: 2px;
+}
