@@ -581,22 +581,23 @@ h1 {
 
 .modal-input-row {
     display: flex;
-    gap: 10px;
+    flex-direction: column;
+    gap: 12px;
     margin-bottom: 16px;
 }
 
 .modal-input-row input {
-    flex: 1;
-    padding: 18px 16px;
-    font-size: 2rem;
+    width: 100%;
+    padding: 16px 20px;
+    font-size: 1.4rem;
     font-weight: 700;
     border-radius: 14px;
     border: 2px solid var(--border);
     background: var(--surface2);
     color: var(--text-main);
     font-family: 'Noto Sans KR', sans-serif;
-    text-align: center;
-    letter-spacing: 4px;
+    text-align: left;
+    letter-spacing: 0;
     transition: border-color 0.2s;
 }
 
@@ -606,17 +607,18 @@ h1 {
 }
 
 .modal-input-row input::placeholder {
-    font-size: 1.4rem;
+    font-size: 1.3rem;
     color: var(--text-sub);
     letter-spacing: 0;
 }
 
 .modal-search-btn {
+    width: 100%;
     background: var(--accent);
     color: white;
     border: none;
     border-radius: 14px;
-    padding: 18px 22px;
+    padding: 16px;
     font-size: 1.3rem;
     font-weight: 700;
     cursor: pointer;
@@ -723,7 +725,4 @@ h1 {
     transform: scale(0.95);
 }
 
-/* 입력창 letter-spacing 지역 탭 선택 시 제거 */
-.modal-input-row input {
-    letter-spacing: 2px;
-}
+/* 입력창 중복 스타일 제거 (위에서 이미 정의됨) */

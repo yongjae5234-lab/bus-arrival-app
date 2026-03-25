@@ -1,18 +1,29 @@
-const CACHE_NAME = 'bus-arrival-cache-v1';
+const CACHE_NAME = 'bus-arrival-cache-v2';
 const urlsToCache = [
-  './index.html',
-  './styles.css',
-  './script.js',
-  './manifest.json',
+  '/',
+  '/index.html',
+  '/styles.css',
+  '/script.js',
+  '/manifest.json',
   'https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@500;700;900&display=swap'
 ];
 
 self.addEventListener('install', event => {
+  self.skipWaiting(); // 즉시 활성화
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => {
-        return cache.addAll(urlsToCache);
-      })
+      .then(cache => cache.addAll(urlsToCache))
+  );
+});
+
+// 이전 버전 캐시 자동 삭제
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(
+        keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
+      )
+    ).then(() => self.clients.claim())
   );
 });
 
@@ -23,14 +34,14 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // 정적 파일은 캐시된 것을 먼저 사용하고, 없으면 네트워크 요청
+  // 정적 파일: 네트워크 우선, 실패 시 캐시 사용 (항상 최신 버전 제공)
   event.respondWith(
-    caches.match(event.request)
+    fetch(event.request)
       .then(response => {
-        if (response) {
-          return response;
-        }
-        return fetch(event.request);
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+        return response;
       })
+      .catch(() => caches.match(event.request))
   );
 });
