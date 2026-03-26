@@ -234,7 +234,8 @@ async def search_stop(
             elif region == "gyeonggi":
                 if not GG_API_KEY:
                     raise HTTPException(status_code=500, detail="경기도 API 키가 설정되지 않았습니다.")
-                resp = await client.get(GG_SEARCH_URL, params={"serviceKey": GG_API_KEY, "keyword": q.strip(), "format": "json"})
+                url = f"{GG_SEARCH_URL}?serviceKey={GG_API_KEY}"
+                resp = await client.get(url, params={"keyword": q.strip(), "format": "json"})
                 resp.raise_for_status()
                 return _parse_gg_search(resp.json())
 
@@ -266,7 +267,8 @@ async def get_bus_arrival(
             elif region == "gyeonggi":
                 if not GG_API_KEY:
                     raise HTTPException(status_code=500, detail="경기도 API 키가 설정되지 않았습니다.")
-                resp = await client.get(GG_ARRIVAL_URL, params={"serviceKey": GG_API_KEY, "stationId": bstopid.strip(), "format": "json"})
+                url = f"{GG_ARRIVAL_URL}?serviceKey={GG_API_KEY}"
+                resp = await client.get(url, params={"stationId": bstopid.strip(), "format": "json"})
                 resp.raise_for_status()
                 return _parse_gg_arrival(resp.json())
 
