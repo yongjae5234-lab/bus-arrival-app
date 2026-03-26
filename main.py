@@ -131,22 +131,24 @@ def _parse_seoul_arrival(data: dict) -> list:
     for bus in result_list:
         route_no = bus.get("rtnm", bus.get("rtnum", ""))
         # stat1: 양수 = 도착 예정 분, 음수 = 운행종료 등
-        stat1 = bus.get("stat1", -1)
-        statnm1 = bus.get("statnm1", "")
-        avgs11 = bus.get("avgs11", 0)  # 평균 배차 간격(초) - 없을 때 사용
+        stat1 = bus.get("stat1")
+        statnm1 = str(bus.get("statnm1", ""))
+        avgs11 = bus.get("avgs11", 0)
 
-        if stat1 is not None and stat1 > 0:
-            # stat1이 분 단위 예정 시간
-            minutes = int(stat1)
-        elif statnm1 in ["곧 도착", "도착", "전전전", "전전", "전"]:
+        minutes = -1
+        # avgs11이 존재하면 초 단위 예상 시간
+        if avgs11 and int(avgs11) > 0:
+            minutes = int(avgs11) // 60
+        elif statnm1 in ["곧 도착", "도착"] or "전" in statnm1:
             minutes = 0
-        else:
-            continue  # 운행종료, 출발대기 등 제외
+
+        if minutes < 0:
+            continue  # 운행종료, 출발대기 등 도착 정보 없는 경우 제외
 
         time_str = "잠시 후 도착" if minutes == 0 else f"{minutes}분 후"
         # 경유 위치: statnm1이 숫자 "전" 형태일 때
         import re
-        m = re.match(r'^(\d+)\s*전$', str(statnm1))
+        m = re.match(r'^(\d+)\s*전$', statnm1)
         stop_info = f"{m.group(1)}정거장 전" if m else (statnm1 if statnm1 else "위치 정보 없음")
 
         if route_no:
