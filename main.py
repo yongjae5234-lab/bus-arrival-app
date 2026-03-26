@@ -249,9 +249,12 @@ async def search_stop(
             elif region == "gyeonggi":
                 if not GG_API_KEY:
                     raise HTTPException(status_code=500, detail="경기도 API 키가 설정되지 않았습니다.")
-                url = f"{GG_SEARCH_URL}?serviceKey={GG_API_KEY}"
+                # 원본 키 그대로 사용 (unquote 제거)
+                url = f"{GG_SEARCH_URL}?serviceKey={os.getenv('GYEONGGI_API_KEY', '')}"
                 resp = await client.get(url, params={"keyword": q.strip()})
-                resp.raise_for_status()
+                if resp.status_code != 200:
+                    err_msg = resp.text[:200]
+                    raise HTTPException(status_code=500, detail=f"경기 버스 API 오류 ({resp.status_code}): {err_msg}")
                 return _parse_gg_search(resp.text)
 
             else:
@@ -259,7 +262,7 @@ async def search_stop(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"서버 내부 오류: {str(e)}")
 
 
 @app.get("/api/bus-arrival")
@@ -282,9 +285,12 @@ async def get_bus_arrival(
             elif region == "gyeonggi":
                 if not GG_API_KEY:
                     raise HTTPException(status_code=500, detail="경기도 API 키가 설정되지 않았습니다.")
-                url = f"{GG_ARRIVAL_URL}?serviceKey={GG_API_KEY}"
+                # 원본 키 그대로 사용
+                url = f"{GG_ARRIVAL_URL}?serviceKey={os.getenv('GYEONGGI_API_KEY', '')}"
                 resp = await client.get(url, params={"stationId": bstopid.strip()})
-                resp.raise_for_status()
+                if resp.status_code != 200:
+                    err_msg = resp.text[:200]
+                    raise HTTPException(status_code=500, detail=f"경기 버스 API 오류 ({resp.status_code}): {err_msg}")
                 return _parse_gg_arrival(resp.text)
 
             else:
@@ -292,7 +298,7 @@ async def get_bus_arrival(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"서버 내부 오류: {str(e)}")
 
 
 if __name__ == "__main__":

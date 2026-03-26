@@ -354,7 +354,14 @@ async function searchAndSaveStop() {
 
     try {
         const resp = await fetch(`/api/search-stop?q=${encodeURIComponent(input)}&region=${currentRegion}`);
-        if (!resp.ok) throw new Error("검색 실패");
+        if (!resp.ok) {
+            let errMsg = "검색 실패";
+            try {
+                const errData = await resp.json();
+                if (errData.detail) errMsg = errData.detail;
+            } catch (e) {}
+            throw new Error(errMsg);
+        }
         const results = await resp.json();
 
         searching.classList.add("hidden");
