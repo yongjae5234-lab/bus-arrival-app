@@ -1,9 +1,10 @@
+import os
+import httpx
+import urllib.parse
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse
-import httpx
-import os
-import urllib.parse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -51,10 +52,14 @@ SEOUL_HEADERS = {
 # ============================================================
 # 경기도 버스 API (공공데이터포털 REST API, API 키 필요)
 # ============================================================
-GG_API_KEY = os.getenv("GYEONGGI_API_KEY", "")
+GG_API_KEY = urllib.parse.unquote(os.getenv("GYEONGGI_API_KEY", "")) # 인코딩된 키 방지
 GG_SEARCH_URL = "https://apis.data.go.kr/6410000/busstationservice/v2/getBusStationListv2"
 GG_ARRIVAL_URL = "https://apis.data.go.kr/6410000/busarrivalservice/v2/getBusArrivalListv2"
 
+# 공통 헤더
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"
+}
 # ============================================================
 # 정적 파일 서빙
 # ============================================================
