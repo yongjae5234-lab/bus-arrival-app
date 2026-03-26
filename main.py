@@ -168,44 +168,59 @@ def _parse_seoul_arrival(data: dict) -> list:
     buses.sort(key=lambda x: x["minutes"])
     return buses[:10]
 
-def _parse_gg_search(data: dict) -> list:
+def _parse_gg_search(xml_text: str) -> list:
+    import xml.etree.ElementTree as ET
     try:
-        items = data["response"]["msgBody"]["busStationList"]
-        if isinstance(items, dict):
-            items = [items]
-    except (KeyError, TypeError):
+        root = ET.fromstring(xml_text)
+    except Exception:
         return []
+    
     results = []
-    for s in (items or [])[:10]:
-        stop_id = str(s.get("stationId", ""))
-        stop_name = s.get("stationName", "알 수 없음")
-        short_id = str(s.get("mobileNo", ""))
+    items = root.findall(".//busStationList")
+    for s in items[:10]:
+        st_id_el = s.find("stationId")
+        st_nm_el = s.find("stationName")
+        mob_no_el = s.find("mobileNo")
+        
+        stop_id = st_id_el.text if st_id_el is not None else ""
+        stop_name = st_nm_el.text if st_nm_el is not None else "알 수 없음"
+        short_id = mob_no_el.text if mob_no_el is not None else ""
+        
         if stop_id:
             results.append({"id": stop_id, "name": stop_name, "shortId": short_id, "region": "gyeonggi"})
     return results
 
-def _parse_gg_arrival(data: dict) -> list:
+def _parse_gg_arrival(xml_text: str) -> list:
+    import xml.etree.ElementTree as ET
     try:
-        items = data["response"]["msgBody"]["busArrivalList"]
-        if isinstance(items, dict):
-            items = [items]
-    except (KeyError, TypeError):
+        root = ET.fromstring(xml_text)
+    except Exception:
         return []
     buses = []
-    for bus in (items or []):
-        route_no = bus.get("routeName", "")
-        predict_time1 = bus.get("predictTime1", "")
-        remain_seat = bus.get("remainSeatCnt1", "")
-        if predict_time1 and str(predict_time1).strip():
+    items = root.findall(".//busArrivalList")
+    for bus in items:
+        rt_el = bus.find("routeName")
+        pt_el = bus.find("predictTime1")
+        rs_el = bus.find("remainSeatCnt1")
+        loc_el = bus.find("locationNo1")
+        
+        route_no = rt_el.text if rt_el is not None else ""
+        predict_time1 = pt_el.text if pt_el is not None else ""
+        remain_seat = rs_el.text if rs_el is not None else ""
+        location_no = loc_el.text if loc_el is not None else ""
+        
+        if predict_time1 and predict_time1.strip():
             try:
-                minutes = int(str(predict_time1).strip())
+                minutes = int(predict_time1.strip())
             except:
                 continue
             time_str = "잠시 후 도착" if minutes == 0 else f"{minutes}분 후"
-            stop_info = f"남은 좌석: {remain_seat}" if remain_seat and str(remain_seat) != "-1" else "위치 정보 없음"
+            stop_info = f"{location_no}번째 전" if location_no else "위치 정보 없음"
+            if remain_seat and remain_seat != "-1":
+                stop_info += f" / 남은좌석: {remain_seat}"
             buses.append({"routeNo": route_no, "timeStr": time_str, "stopInfo": stop_info, "isArriving": minutes <= 3, "minutes": minutes})
     buses.sort(key=lambda x: x["minutes"])
-    return buses
+    return buses[:10]
 
 
 # ============================================================
@@ -235,9 +250,9 @@ async def search_stop(
                 if not GG_API_KEY:
                     raise HTTPException(status_code=500, detail="경기도 API 키가 설정되지 않았습니다.")
                 url = f"{GG_SEARCH_URL}?serviceKey={GG_API_KEY}"
-                resp = await client.get(url, params={"keyword": q.strip(), "format": "json"})
+                resp = await client.get(url, params={"keyword": q.strip()})
                 resp.raise_for_status()
-                return _parse_gg_search(resp.json())
+                return _parse_gg_search(resp.text)
 
             else:
                 raise HTTPException(status_code=400, detail=f"알 수 없는 지역: {region}")
@@ -268,9 +283,9 @@ async def get_bus_arrival(
                 if not GG_API_KEY:
                     raise HTTPException(status_code=500, detail="경기도 API 키가 설정되지 않았습니다.")
                 url = f"{GG_ARRIVAL_URL}?serviceKey={GG_API_KEY}"
-                resp = await client.get(url, params={"stationId": bstopid.strip(), "format": "json"})
+                resp = await client.get(url, params={"stationId": bstopid.strip()})
                 resp.raise_for_status()
-                return _parse_gg_arrival(resp.json())
+                return _parse_gg_arrival(resp.text)
 
             else:
                 raise HTTPException(status_code=400, detail=f"알 수 없는 지역: {region}")
