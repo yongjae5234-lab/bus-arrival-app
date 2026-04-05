@@ -63,7 +63,7 @@ HEADERS = {
 # ============================================================
 # 정적 파일 서빙
 # ============================================================
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 async def serve_index():
     if os.path.exists("index.html"):
         return FileResponse("index.html")
