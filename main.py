@@ -53,8 +53,8 @@ SEOUL_HEADERS = {
 # 경기도 버스 API (공공데이터포털 REST API, API 키 필요)
 # ============================================================
 GG_API_KEY = urllib.parse.unquote(os.getenv("GYEONGGI_API_KEY", "")) # 인코딩된 키 방지
-GG_SEARCH_URL = "https://apis.data.go.kr/6410000/busstationservice/v2/getBusStationListv2"
-GG_ARRIVAL_URL = "https://apis.data.go.kr/6410000/busarrivalservice/v2/getBusArrivalListv2"
+GG_SEARCH_URL = "https://apis.data.go.kr/6410000/busstationservice/getBusStationList"
+GG_ARRIVAL_URL = "https://apis.data.go.kr/6410000/busarrivalservice/getBusArrivalList"
 
 # 공통 헤더
 HEADERS = {
@@ -168,55 +168,51 @@ def _parse_seoul_arrival(data: dict) -> list:
     buses.sort(key=lambda x: x["minutes"])
     return buses[:10]
 
-def _parse_gg_search(xml_text: str) -> list:
-    import xml.etree.ElementTree as ET
+def _parse_gg_search(data: dict) -> list:
     try:
-        root = ET.fromstring(xml_text)
-    except Exception:
+        # data.go.kr json 형식 파싱
+        items = data.get("response", {}).get("msgBody", {}).get("busStationList", [])
+        if isinstance(items, dict):
+            items = [items]
+    except (KeyError, TypeError) as e:
         return []
-    
-    results = []
-    items = root.findall(".//busStationList")
-    for s in items[:10]:
-        st_id_el = s.find("stationId")
-        st_nm_el = s.find("stationName")
-        mob_no_el = s.find("mobileNo")
         
-        stop_id = st_id_el.text if st_id_el is not None else ""
-        stop_name = st_nm_el.text if st_nm_el is not None else "알 수 없음"
-        short_id = mob_no_el.text if mob_no_el is not None else ""
+    results = []
+    for s in (items or [])[:10]:
+        stop_id = str(s.get("stationId", ""))
+        stop_name = s.get("stationName", "알 수 없음")
+        short_id = str(s.get("mobileNo", ""))
+        region_name = str(s.get("regionName", ""))
         
         if stop_id:
-            results.append({"id": stop_id, "name": stop_name, "shortId": short_id, "region": "gyeonggi"})
+            name_with_region = f"{stop_name} ({region_name})" if region_name else stop_name
+            results.append({"id": stop_id, "name": name_with_region, "shortId": short_id, "region": "gyeonggi"})
     return results
 
-def _parse_gg_arrival(xml_text: str) -> list:
-    import xml.etree.ElementTree as ET
+def _parse_gg_arrival(data: dict) -> list:
     try:
-        root = ET.fromstring(xml_text)
-    except Exception:
+        items = data.get("response", {}).get("msgBody", {}).get("busArrivalList", [])
+        if isinstance(items, dict):
+            items = [items]
+    except (KeyError, TypeError):
         return []
+        
     buses = []
-    items = root.findall(".//busArrivalList")
-    for bus in items:
-        rt_el = bus.find("routeName")
-        pt_el = bus.find("predictTime1")
-        rs_el = bus.find("remainSeatCnt1")
-        loc_el = bus.find("locationNo1")
+    for bus in (items or []):
+        route_no = bus.get("routeName", "")
+        # v1에서는 predictTime1이 없을 수 있으니, predictTime1,2 등 확인
+        predict_time1 = bus.get("predictTime1", "")
+        remain_seat = bus.get("remainSeatCnt1", "")
+        location_no = bus.get("locationNo1", "")
         
-        route_no = rt_el.text if rt_el is not None else ""
-        predict_time1 = pt_el.text if pt_el is not None else ""
-        remain_seat = rs_el.text if rs_el is not None else ""
-        location_no = loc_el.text if loc_el is not None else ""
-        
-        if predict_time1 and predict_time1.strip():
+        if predict_time1 and str(predict_time1).strip():
             try:
-                minutes = int(predict_time1.strip())
+                minutes = int(str(predict_time1).strip())
             except:
                 continue
             time_str = "잠시 후 도착" if minutes == 0 else f"{minutes}분 후"
             stop_info = f"{location_no}번째 전" if location_no else "위치 정보 없음"
-            if remain_seat and remain_seat != "-1":
+            if remain_seat and str(remain_seat) != "-1":
                 stop_info += f" / 남은좌석: {remain_seat}"
             buses.append({"routeNo": route_no, "timeStr": time_str, "stopInfo": stop_info, "isArriving": minutes <= 3, "minutes": minutes})
     buses.sort(key=lambda x: x["minutes"])
@@ -249,13 +245,15 @@ async def search_stop(
             elif region == "gyeonggi":
                 if not GG_API_KEY:
                     raise HTTPException(status_code=500, detail="경기도 API 키가 설정되지 않았습니다.")
-                # 원본 키 그대로 사용 (unquote 제거)
-                url = f"{GG_SEARCH_URL}?serviceKey={os.getenv('GYEONGGI_API_KEY', '')}"
-                resp = await client.get(url, params={"keyword": q.strip()})
+                # 사용자가 제공한 HTML에 맞게 URL Encoding 처리
+                raw_key = os.getenv('GYEONGGI_API_KEY', '')
+                encoded_key = urllib.parse.quote(raw_key) if raw_key else ""
+                url = f"{GG_SEARCH_URL}?serviceKey={encoded_key}&keyword={urllib.parse.quote(q.strip())}&_type=json"
+                resp = await client.get(url)
                 if resp.status_code != 200:
                     err_msg = resp.text[:200]
                     raise HTTPException(status_code=500, detail=f"경기 버스 API 오류 ({resp.status_code}): {err_msg}")
-                return _parse_gg_search(resp.text)
+                return _parse_gg_search(resp.json())
 
             else:
                 raise HTTPException(status_code=400, detail=f"알 수 없는 지역: {region}")
@@ -285,13 +283,14 @@ async def get_bus_arrival(
             elif region == "gyeonggi":
                 if not GG_API_KEY:
                     raise HTTPException(status_code=500, detail="경기도 API 키가 설정되지 않았습니다.")
-                # 원본 키 그대로 사용
-                url = f"{GG_ARRIVAL_URL}?serviceKey={os.getenv('GYEONGGI_API_KEY', '')}"
-                resp = await client.get(url, params={"stationId": bstopid.strip()})
+                raw_key = os.getenv('GYEONGGI_API_KEY', '')
+                encoded_key = urllib.parse.quote(raw_key) if raw_key else ""
+                url = f"{GG_ARRIVAL_URL}?serviceKey={encoded_key}&stationId={urllib.parse.quote(bstopid.strip())}&_type=json"
+                resp = await client.get(url)
                 if resp.status_code != 200:
                     err_msg = resp.text[:200]
                     raise HTTPException(status_code=500, detail=f"경기 버스 API 오류 ({resp.status_code}): {err_msg}")
-                return _parse_gg_arrival(resp.text)
+                return _parse_gg_arrival(resp.json())
 
             else:
                 raise HTTPException(status_code=400, detail=f"알 수 없는 지역: {region}")
