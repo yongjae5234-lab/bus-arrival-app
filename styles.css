@@ -554,6 +554,10 @@ h1 {
     border-top: 2px solid var(--border);
     box-shadow: 0 -8px 32px rgba(0,0,0,0.5);
     animation: slideUp 0.3s ease-out;
+    /* 모바일에서 화면 질림 방지 */
+    max-height: 90vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 @keyframes slideUp {
@@ -642,9 +646,12 @@ h1 {
 .modal-result {
     background: var(--surface2);
     border-radius: 14px;
-    overflow: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     margin-bottom: 16px;
     border: 1px solid var(--border);
+    /* 검색 결과 데이터가 많은 경우 스크롤 가능 */
+    max-height: 45vh;
 }
 
 .modal-result-item {
