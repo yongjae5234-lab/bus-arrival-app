@@ -170,21 +170,22 @@ def _parse_seoul_arrival(data: dict) -> list:
 
 def _parse_gg_search(data: dict) -> list:
     try:
-        # data.go.kr json 형식 파싱
         items = data.get("response", {}).get("msgBody", {}).get("busStationList", [])
         if isinstance(items, dict):
             items = [items]
-    except (KeyError, TypeError) as e:
+    except (KeyError, TypeError):
         return []
         
     results = []
     for s in (items or [])[:10]:
-        stop_id = str(s.get("stationId", ""))
-        stop_name = s.get("stationName", "알 수 없음")
-        short_id = str(s.get("mobileNo", ""))
-        region_name = str(s.get("regionName", ""))
+        # stationId가 int로 올 수 있으므로 str 변환 필수
+        stop_id = str(s.get("stationId", "")).strip()
+        stop_name = str(s.get("stationName", "알 수 없음")).strip()
+        # mobileNo 앞뒤 공백 제거 (" 35040" → "35040")
+        short_id = str(s.get("mobileNo", "")).strip()
+        region_name = str(s.get("regionName", "")).strip()
         
-        if stop_id:
+        if stop_id and stop_id != "0":
             name_with_region = f"{stop_name} ({region_name})" if region_name else stop_name
             results.append({"id": stop_id, "name": name_with_region, "shortId": short_id, "region": "gyeonggi"})
     return results
@@ -199,21 +200,31 @@ def _parse_gg_arrival(data: dict) -> list:
         
     buses = []
     for bus in (items or []):
-        route_no = bus.get("routeName", "")
-        # v1에서는 predictTime1이 없을 수 있으니, predictTime1,2 등 확인
+        route_no = str(bus.get("routeName", "")).strip()
+        # predictTime1이 int로 올 수 있음
         predict_time1 = bus.get("predictTime1", "")
         remain_seat = bus.get("remainSeatCnt1", "")
         location_no = bus.get("locationNo1", "")
         
-        if predict_time1 and str(predict_time1).strip():
-            try:
-                minutes = int(str(predict_time1).strip())
-            except:
-                continue
-            time_str = "잠시 후 도착" if minutes == 0 else f"{minutes}분 후"
-            stop_info = f"{location_no}번째 전" if location_no else "위치 정보 없음"
-            if remain_seat and str(remain_seat) != "-1":
-                stop_info += f" / 남은좌석: {remain_seat}"
+        # 빈 문자열("") 또는 0이 아닌 경우만 처리
+        try:
+            minutes = int(predict_time1) if predict_time1 != "" and predict_time1 is not None else -1
+        except (ValueError, TypeError):
+            continue
+        
+        if minutes < 0:
+            continue
+            
+        time_str = "잠시 후 도착" if minutes == 0 else f"{minutes}분 후"
+        # locationNo1도 int로 올 수 있으므로 str 변환
+        loc_str = str(location_no).strip() if location_no else ""
+        stop_info = f"{loc_str}번째 전" if loc_str and loc_str != "0" else "위치 정보 없음"
+        
+        remain_str = str(remain_seat).strip()
+        if remain_str and remain_str not in ("-1", "", "0"):
+            stop_info += f" / 남은좌석: {remain_str}"
+        
+        if route_no:
             buses.append({"routeNo": route_no, "timeStr": time_str, "stopInfo": stop_info, "isArriving": minutes <= 3, "minutes": minutes})
     buses.sort(key=lambda x: x["minutes"])
     return buses[:10]
