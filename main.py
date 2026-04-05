@@ -53,8 +53,8 @@ SEOUL_HEADERS = {
 # 경기도 버스 API (공공데이터포털 REST API, API 키 필요)
 # ============================================================
 GG_API_KEY = urllib.parse.unquote(os.getenv("GYEONGGI_API_KEY", "")) # 인코딩된 키 방지
-GG_SEARCH_URL = "https://apis.data.go.kr/6410000/busstationservice/getBusStationList"
-GG_ARRIVAL_URL = "https://apis.data.go.kr/6410000/busarrivalservice/getBusArrivalList"
+GG_SEARCH_URL = "https://apis.data.go.kr/6410000/busstationservice/v2/getBusStationListv2"
+GG_ARRIVAL_URL = "https://apis.data.go.kr/6410000/busarrivalservice/v2/getBusArrivalListv2"
 
 # 공통 헤더
 HEADERS = {
@@ -245,7 +245,6 @@ async def search_stop(
             elif region == "gyeonggi":
                 if not GG_API_KEY:
                     raise HTTPException(status_code=500, detail="경기도 API 키가 설정되지 않았습니다.")
-                # 사용자가 제공한 HTML에 맞게 URL Encoding 처리
                 raw_key = os.getenv('GYEONGGI_API_KEY', '')
                 encoded_key = urllib.parse.quote(raw_key) if raw_key else ""
                 url = f"{GG_SEARCH_URL}?serviceKey={encoded_key}&keyword={urllib.parse.quote(q.strip())}&_type=json"
