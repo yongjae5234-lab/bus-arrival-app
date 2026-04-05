@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bus-arrival-cache-v5';
+const CACHE_NAME = 'bus-arrival-cache-v6';
 const urlsToCache = [
   '/',
   '/index.html',

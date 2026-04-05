@@ -554,9 +554,10 @@ h1 {
     border-top: 2px solid var(--border);
     box-shadow: 0 -8px 32px rgba(0,0,0,0.5);
     animation: slideUp 0.3s ease-out;
-    /* 모바일에서 화면 질림 방지 */
-    max-height: 90vh;
-    overflow-y: auto;
+    /* 스크롤 보장 및 배경 스크롤 방지 */
+    max-height: 85vh;
+    overflow-y: scroll;
+    overscroll-behavior-y: contain;
     -webkit-overflow-scrolling: touch;
 }
 
@@ -644,14 +645,16 @@ h1 {
 }
 
 .modal-result {
+    display: block;
     background: var(--surface2);
     border-radius: 14px;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
     margin-bottom: 16px;
     border: 1px solid var(--border);
-    /* 검색 결과 데이터가 많은 경우 스크롤 가능 */
+    /* 검색 결과 강제 스크롤바 표시 */
     max-height: 45vh;
+    overflow-y: scroll;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
 }
 
 .modal-result-item {
